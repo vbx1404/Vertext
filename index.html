@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VERTEXT</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Custom styles for the app */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #111827; /* bg-gray-900 */
+            overflow: hidden; /* Prevent body scroll */
+        }
+        #main-content {
+            height: calc(100vh - 76px); /* Full height minus header */
+        }
+        #renderer-container {
+            width: 100%;
+            height: 100%;
+            border-radius: 0.5rem;
+            cursor: grab;
+        }
+        #renderer-container:active {
+            cursor: grabbing;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* Style for notifications */
+        .notification {
+            transition: opacity 0.5s, transform 0.5s;
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        .notification.show {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="text-white">
+
+    <!-- Header Section -->
+    <header class="bg-gray-800/50 backdrop-blur-sm p-4 shadow-lg sticky top-0 z-10">
+        <div class="container mx-auto flex justify-between items-center flex-wrap gap-4">
+            <h1 class="text-2xl font-bold text-cyan-400">VERTEXT</h1>
+            <div class="flex items-center space-x-4">
+                <!-- AI Prompt Input -->
+                <div class="flex items-center bg-gray-700 rounded-lg shadow-inner">
+                    <input type="text" id="prompt-input" placeholder="e.g., a majestic eagle soaring" class="bg-transparent border-0 text-white placeholder-gray-400 focus:ring-0 w-48 md:w-64 px-4 py-2">
+                    <button id="prompt-apply-btn" class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 px-4 rounded-r-lg transition-colors duration-300">
+                        Generate
+                    </button>
+                </div>
+                <!-- File Input Button -->
+                <label for="ply-upload" class="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-lg cursor-pointer transition-colors duration-300">
+                     Load .PLY
+                </label>
+                <input type="file" id="ply-upload" class="hidden" accept=".ply">
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main id="main-content" class="container mx-auto p-4 flex gap-4">
+        <!-- Left Panel: GIF Viewer -->
+        <div id="gif-panel" class="w-1/3 bg-gray-800 rounded-lg shadow-2xl flex flex-col justify-center items-center p-4 relative">
+             <div id="gif-placeholder" class="text-center text-gray-400">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <h3 class="text-lg font-semibold">Generated GIF will appear here</h3>
+                <p class="text-sm">Enter a prompt and click "Generate".</p>
+            </div>
+            <div id="gif-loader" class="absolute inset-0 flex flex-col justify-center items-center bg-gray-800/80 hidden">
+                <div class="loader"></div>
+                <p class="mt-4 text-white">Generating GIF...</p>
+            </div>
+            <img id="gif-display" class="hidden w-full h-full object-contain rounded-lg" alt="Generated GIF">
+        </div>
+
+        <!-- Right Panel: 3D Viewer -->
+        <div id="viewer-panel" class="w-2/3 bg-gray-800 rounded-lg shadow-2xl relative overflow-hidden">
+            <div id="renderer-container"></div>
+            <div id="reconstruction-loader" class="absolute inset-0 flex flex-col justify-center items-center bg-gray-800/80 hidden">
+                <div class="loader"></div>
+                <p class="mt-4 text-white">Reconstructing 3D Mesh...</p>
+            </div>
+            <div id="viewer-placeholder" class="absolute inset-0 flex flex-col justify-center items-center text-gray-400 p-8 text-center pointer-events-none">
+                 <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2 1M4 7l2-1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5" />
+                </svg>
+                <h2 class="text-xl font-semibold">Load a .PLY file or generate one</h2>
+                <p class="mt-2 text-sm">Use your mouse to rotate, zoom, and pan.</p>
+            </div>
+        </div>
+    </main>
+    
+    <!-- Notification Area -->
+    <div id="notification-area" class="fixed top-24 right-4 z-50 flex flex-col items-end space-y-2"></div>
+
+    <!-- three.js and necessary loaders -->
+    <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.158.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { PLYLoader } from 'three/addons/loaders/PLYLoader.js';
+
+        // --- DOM Elements ---
+        const plyViewerContainer = document.getElementById('renderer-container');
+        const viewerPanel = document.getElementById('viewer-panel');
+        const fileInput = document.getElementById('ply-upload');
+        const viewerPlaceholder = document.getElementById('viewer-placeholder');
+        const reconstructionLoader = document.getElementById('reconstruction-loader');
+        
+        const gifPanel = document.getElementById('gif-panel');
+        const gifPlaceholder = document.getElementById('gif-placeholder');
+        const gifLoader = document.getElementById('gif-loader');
+        const gifDisplay = document.getElementById('gif-display');
+
+        const promptInput = document.getElementById('prompt-input');
+        const applyBtn = document.getElementById('prompt-apply-btn');
+        const notificationArea = document.getElementById('notification-area');
+
+        // --- Global Variables ---
+        let scene, camera, renderer, controls, mesh;
+        const plyLoader = new PLYLoader();
+        const API_BASE_URL = "https://6bc4-104-171-203-224.ngrok-free.app";
+
+        // --- Core 3D and App Initialization ---
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1f2937);
+
+            camera = new THREE.PerspectiveCamera(75, viewerPanel.clientWidth / viewerPanel.clientHeight, 0.1, 1000);
+            camera.position.set(0, 0, 10);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(viewerPanel.clientWidth, viewerPanel.clientHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            plyViewerContainer.appendChild(renderer.domElement);
+            
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+            scene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+            directionalLight.position.set(50, 50, 50);
+            scene.add(directionalLight);
+            
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+
+            // Event Listeners
+            window.addEventListener('resize', onWindowResize, false);
+            fileInput.addEventListener('change', handleFileLoad);
+            applyBtn.addEventListener('click', handleGenerationProcess);
+            promptInput.addEventListener('keydown', (e) => {
+              if (e.key === 'Enter' && !applyBtn.disabled) handleGenerationProcess();
+            });
+
+            animate();
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = viewerPanel.clientWidth / viewerPanel.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(viewerPanel.clientWidth, viewerPanel.clientHeight);
+        }
+
+        // --- Main Generation Workflow ---
+        async function handleGenerationProcess() {
+            const prompt = promptInput.value.trim();
+            if (!prompt) {
+                showNotification("Please enter a prompt to generate content.", true);
+                return;
+            }
+
+            // --- UI Setup for Loading ---
+            applyBtn.disabled = true;
+            applyBtn.innerHTML = 'Working...';
+            gifPlaceholder.classList.add('hidden');
+            gifDisplay.classList.add('hidden');
+            gifLoader.classList.remove('hidden');
+            viewerPlaceholder.classList.add('hidden');
+            
+            try {
+                // --- Step 1: Generate and display GIF ---
+                showNotification("Step 1/2: Generating GIF...");
+                const gifBlob = await generateVideo(prompt);
+                const gifUrl = URL.createObjectURL(gifBlob);
+                gifDisplay.src = gifUrl;
+                gifDisplay.classList.remove('hidden');
+                gifLoader.classList.add('hidden');
+                showNotification("GIF loaded. Starting 3D reconstruction...");
+
+                // --- Step 2: Reconstruct and load 3D Mesh ---
+                reconstructionLoader.classList.remove('hidden');
+                showNotification("Step 2/2: Reconstructing 3D Mesh...");
+                const plyBlob = await reconstructVideo();
+                const plyBuffer = await plyBlob.arrayBuffer();
+                loadPlyFromBuffer(plyBuffer); // This function handles mesh creation
+                showNotification("3D Mesh loaded successfully!", false);
+
+            } catch (error) {
+                console.error("Generation Process Error:", error);
+                showNotification(error.message || "An error occurred during generation. Check console.", true);
+                // Reset UI state on error
+                gifPlaceholder.classList.remove('hidden');
+            } finally {
+                // --- Reset UI ---
+                applyBtn.disabled = false;
+                applyBtn.innerHTML = 'Generate';
+                gifLoader.classList.add('hidden');
+                reconstructionLoader.classList.add('hidden');
+            }
+        }
+        
+        // --- API Call Functions ---
+        async function generateVideo(prompt) {
+            const response = await fetch(`${API_BASE_URL}/generate-video/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt })
+            });
+            if (!response.ok) throw new Error(`GIF generation failed: ${response.statusText}`);
+            return await response.blob();
+        }
+
+        async function reconstructVideo() {
+            const response = await fetch(`${API_BASE_URL}/reconstruct-video/`, {
+                method: 'POST' // No body needed as per the user's curl command
+            });
+            if (!response.ok) throw new Error(`3D reconstruction failed: ${response.statusText}`);
+            return await response.blob();
+        }
+
+        // --- Mesh Loading and Creation ---
+        function handleFileLoad(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    loadPlyFromBuffer(e.target.result);
+                    showNotification("Model loaded successfully!");
+                } catch(error) {
+                    handleMeshCreationError(error);
+                }
+            };
+            reader.onerror = () => showNotification("Error reading file.", true);
+            reader.readAsArrayBuffer(file);
+        }
+
+        function loadPlyFromBuffer(buffer) {
+            viewerPlaceholder.classList.add('hidden');
+            try {
+                const geometry = plyLoader.parse(buffer);
+                createMeshFromGeometry(geometry);
+            } catch(error) {
+                handleMeshCreationError(error);
+            }
+        }
+
+        function createMeshFromGeometry(geometry) {
+            if (mesh) { // Clean up old mesh
+                scene.remove(mesh);
+                mesh.geometry.dispose();
+                mesh.material.dispose();
+            }
+
+            geometry.computeVertexNormals();
+            const hasVertexColors = geometry.hasAttribute('color');
+            const material = new THREE.MeshStandardMaterial({
+                color: hasVertexColors ? 0xffffff : 0x00ffff, 
+                vertexColors: hasVertexColors,
+                flatShading: false,
+                side: THREE.DoubleSide // Render both sides
+            });
+
+            mesh = new THREE.Mesh(geometry, material);
+            scene.add(mesh);
+            centerCameraOnMesh(mesh);
+        }
+
+        function handleMeshCreationError(error) {
+            console.error("Error creating mesh:", error);
+            showNotification("Failed to load or create 3D mesh.", true);
+            if (!mesh) viewerPlaceholder.classList.remove('hidden');
+        }
+
+        // --- Helper Functions ---
+        function centerCameraOnMesh(targetMesh) {
+            const box = new THREE.Box3().setFromObject(targetMesh);
+            const center = box.getCenter(new THREE.Vector3());
+            const size = box.getSize(new THREE.Vector3());
+            const maxDim = Math.max(size.x, size.y, size.z);
+            const fov = camera.fov * (Math.PI / 180);
+            let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2));
+            cameraZ *= 1.5; 
+            camera.position.set(center.x, center.y, center.z + cameraZ);
+            controls.target.copy(center);
+            controls.update();
+        }
+
+        function showNotification(message, isError = false) {
+            const notif = document.createElement('div');
+            const bgColor = isError ? 'bg-red-500' : 'bg-green-500';
+            notif.className = `notification p-3 rounded-lg shadow-lg text-white ${bgColor}`;
+            notif.textContent = message;
+            notificationArea.appendChild(notif);
+            requestAnimationFrame(() => notif.classList.add('show'));
+            setTimeout(() => {
+                notif.classList.remove('show');
+                notif.addEventListener('transitionend', () => notif.remove());
+            }, 4000);
+        }
+
+        // --- Start the application ---
+        init();
+    </script>
+</body>
+</html>
