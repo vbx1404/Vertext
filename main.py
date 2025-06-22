@@ -19,6 +19,7 @@ from starlette.responses import FileResponse, JSONResponse
 
 from google import genai
 from google.genai import types
+from google.genai.types import HttpOptions
 
 # Assuming fast3r library is installed and its components are available
 # These imports are based on your provided script
@@ -35,6 +36,8 @@ logging.basicConfig(level=logging.INFO)
 # --- Initialize Google GenAI client (assumes GOOGLE_API_KEY is in env) ---
 # It's good practice to handle potential missing keys gracefully.
 try:
+    # client = genai.Client(vertexai=True, api_key="AIzaSyDidVPLLZO4pR0XqXdy3ZykfQXi7ErMtT8")
+    # client = genai.Client(http_options=HttpOptions(api_version="v1"))
     client = genai.Client()
 except Exception as e:
     logger.error(f"Failed to initialize Google GenAI Client: {e}")
@@ -77,7 +80,6 @@ async def startup_event():
     
     # Set the device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    
     # Load the model from Hugging Face Hub
     try:
         model_name = "jedyang97/Fast3R_ViT_Large_512"
@@ -202,6 +204,7 @@ async def generate_video(request: PromptRequest):
         raise HTTPException(status_code=503, detail="Google GenAI Client is not available.")
 
     prompt = request.prompt
+    prompt += ", please show the views from as many different perspectives as possible, please do not include too many dynamic objects"
     uid = str(uuid.uuid4())[:8]
     output_dir = tempfile.mkdtemp(prefix=f"{uid}_")
     mp4_path = os.path.join(output_dir, f"{uid}_video.mp4")
@@ -215,7 +218,7 @@ async def generate_video(request: PromptRequest):
             config=types.GenerateVideosConfig(person_generation="dont_allow", aspect_ratio="16:9"),
         )
         while not operation.done:
-            time.sleep(10)
+            time.sleep(20)
             operation = client.operations.get(operation)
 
         logger.info("Video generation completed.")
