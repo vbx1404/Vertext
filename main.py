@@ -3,15 +3,17 @@ import os
 import uuid
 import subprocess
 import logging
-
+import threading
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from fastapi.responses import FileResponse
+from pyngrok import ngrok
 from google import genai
 from google.genai import types
 
 logger = logging.getLogger("uvicorn")
+logging.basicConfig(level=logging.INFO)
 
 # Initialize Google GenAI client (assumes GOOGLE_API_KEY is in env)
 client = genai.Client()
@@ -67,5 +69,21 @@ async def generate_video(request: PromptRequest):
         return FileResponse(gif_path, media_type="image/gif", filename="preview.gif")
 
     except Exception as e:
-        logger.info(f"Video generation {e}")
+        logger.exception("Video generation failed")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+def start_ngrok():
+    port = 8000
+    public_url = ngrok.connect(port)
+    logger.info(f"ngrok tunnel available at: {public_url}")
+    print(f"🚀 Public URL: {public_url}/generate-video/")
+
+
+if __name__ == "__main__":
+    # Start ngrok in a separate thread
+    threading.Thread(target=start_ngrok, daemon=True).start()
+
+    # Run FastAPI app with uvicorn
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
