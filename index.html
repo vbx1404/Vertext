@@ -3,13 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VERTEXT</title>
+    <title>AI GIF Generator & 3D Viewer with Voice Input</title>
     <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome for microphone icon -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         /* Custom styles for the app */
         body {
@@ -51,6 +53,15 @@
             transform: translateX(0);
             opacity: 1;
         }
+        /* Recording animation */
+        .recording-pulse {
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
     </style>
 </head>
 <body class="text-white">
@@ -63,6 +74,9 @@
                 <!-- AI Prompt Input -->
                 <div class="flex items-center bg-gray-700 rounded-lg shadow-inner">
                     <input type="text" id="prompt-input" placeholder="e.g., a majestic eagle soaring" class="bg-transparent border-0 text-white placeholder-gray-400 focus:ring-0 w-48 md:w-64 px-4 py-2">
+                    <button id="voice-input-btn" class="text-white px-3 transition-colors duration-300 hover:text-red-400">
+                        <i class="fas fa-microphone"></i>
+                    </button>
                     <button id="prompt-apply-btn" class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 px-4 rounded-r-lg transition-colors duration-300">
                         Generate
                     </button>
@@ -144,12 +158,19 @@
 
         const promptInput = document.getElementById('prompt-input');
         const applyBtn = document.getElementById('prompt-apply-btn');
+        const voiceBtn = document.getElementById('voice-input-btn');
         const notificationArea = document.getElementById('notification-area');
 
         // --- Global Variables ---
         let scene, camera, renderer, controls, mesh;
+        let mediaRecorder;
+        let audioChunks = [];
+        let isRecording = false;
         const plyLoader = new PLYLoader();
-        const API_BASE_URL = "https://6bc4-104-171-203-224.ngrok-free.app";
+        const API_BASE_URL = "https://9113-104-171-203-224.ngrok-free.app";
+        // NOTE: You should get your own Groq API key. This is a placeholder.
+        const GROQ_API_KEY = ""; 
+        const GROQ_API_URL = "https://api.groq.com/openai/v1/audio/transcriptions";
 
         // --- Core 3D and App Initialization ---
         function init() {
@@ -177,6 +198,7 @@
             window.addEventListener('resize', onWindowResize, false);
             fileInput.addEventListener('change', handleFileLoad);
             applyBtn.addEventListener('click', handleGenerationProcess);
+            voiceBtn.addEventListener('click', handleVoiceInput);
             promptInput.addEventListener('keydown', (e) => {
               if (e.key === 'Enter' && !applyBtn.disabled) handleGenerationProcess();
             });
@@ -194,6 +216,85 @@
             camera.aspect = viewerPanel.clientWidth / viewerPanel.clientHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(viewerPanel.clientWidth, viewerPanel.clientHeight);
+        }
+
+        // --- Voice Input Handling ---
+        async function handleVoiceInput() {
+            if (!GROQ_API_KEY) {
+                showNotification("Groq API key is not set. Cannot use voice input.", true);
+                return;
+            }
+
+            if (isRecording) {
+                stopRecording();
+            } else {
+                await startRecording();
+            }
+        }
+        
+        async function startRecording() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                
+                mediaRecorder.ondataavailable = event => {
+                    audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = async () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    audioChunks = [];
+                    transcribeAudio(audioBlob);
+                    // Stop all tracks to turn off microphone light
+                    stream.getTracks().forEach(track => track.stop());
+                };
+
+                mediaRecorder.start();
+                isRecording = true;
+                voiceBtn.classList.add('text-red-500', 'recording-pulse');
+                showNotification("Recording... Click the mic again to stop.");
+            } catch (err) {
+                console.error("Error accessing microphone:", err);
+                showNotification("Could not access microphone. Please grant permission.", true);
+            }
+        }
+
+        function stopRecording() {
+            if (mediaRecorder && mediaRecorder.state === "recording") {
+                mediaRecorder.stop();
+                isRecording = false;
+                voiceBtn.classList.remove('text-red-500', 'recording-pulse');
+                showNotification("Recording stopped. Transcribing...", false);
+            }
+        }
+
+        async function transcribeAudio(audioBlob) {
+            const formData = new FormData();
+            formData.append('file', audioBlob, 'prompt.webm');
+            formData.append('model', 'whisper-large-v3');
+
+            try {
+                const response = await fetch(GROQ_API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${GROQ_API_KEY}`
+                    },
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(`Groq API Error: ${errorData.error.message}`);
+                }
+                
+                const result = await response.json();
+                promptInput.value = result.text;
+                showNotification("Transcription successful!");
+
+            } catch (error) {
+                console.error("Transcription Error:", error);
+                showNotification(error.message, true);
+            }
         }
 
         // --- Main Generation Workflow ---
