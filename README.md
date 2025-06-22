@@ -2,6 +2,8 @@
 ## Inspiration
 We were fascinated by the idea of turning imagination into reality—how a simple line of text could evolve into a full 3D environment. Inspired by generative media tools and cinematic AI, we set out to explore how language could become a spatial canvas, combining storytelling with immersive design.
 
+![Screencast from 06-22-2025 02-47-43 PM](https://github.com/user-attachments/assets/549c4fe8-6b26-471b-953a-dc373c6d151f)
+
 ## What it does
 Our project transforms natural language prompts into immersive 3D scenes by combining generative video and geometry reconstruction. First, it creates short cinematic videos from text or verbal descriptions using a state-of-the-art video generation model. Then, it converts those videos into detailed 3D meshes using a high-speed transformer-based reconstruction system. The result is a fast, intuitive way to turn ideas into spatial experiences—bridging language, vision, and 3D design
 
