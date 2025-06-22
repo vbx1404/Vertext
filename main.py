@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from fastapi.responses import FileResponse
 from google import genai
 from google.genai import types
+from fastapi.middleware.cors import CORSMiddleware
 
 logger = logging.getLogger("uvicorn")
 logging.basicConfig(level=logging.INFO)
@@ -17,6 +18,14 @@ client = genai.Client()
 
 app = FastAPI()
 
+# Add this CORS middleware section
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods, including OPTIONS and POST
+    allow_headers=["*"],  # Allows all headers
+)
 
 class PromptRequest(BaseModel):
     prompt: str
